@@ -3,11 +3,11 @@
 #include <amp.h>
 #include <amp_math.h>
 
-#include <fstream>
 #include <stdexcept>
 #include <vector>
 #include <random>
 #include <iostream>
+#include <fstream>
 
 /*
 N - кол-во слоев
@@ -21,9 +21,9 @@ N - кол-во слоев
 using namespace concurrency;
 
 const unsigned int lc = 3;
-const unsigned int amountOfNodesOnLayers[lc] = { 3,5,3 };
+const unsigned int amountOfNodesOnLayers[lc] = { 784,100,10 };
 
-#define learning_rate 0.3f
+#define learning_rate 0.2f
 
 
 
@@ -39,10 +39,13 @@ public:
 	~NeuralNetwork();								// сохраняем проделанное в файл
 
 	void init();
-	void train(std::vector<double> & input, std::vector<double> &target);
+	void train(std::vector<double> &input, std::vector<double> &target);
 	std::vector<double> query(std::vector<double> &input);
 
 	void randomize();
+
+	void saveData();
+	void loadData(const char* filename);
 private:
 	unsigned int nodes_sum = 0;
 

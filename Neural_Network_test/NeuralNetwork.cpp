@@ -33,14 +33,15 @@ void NeuralNetwork::init() {
 void NeuralNetwork::train(std::vector<double>& input, std::vector<double>& target) {
 	E_data[lc-1] = query(input);
 
+	
 	// нахождение выходной ошибки
 	{
-		concurrency::array_view<double, 2> E(E_data[lc - 2].size(), 1, E_data[lc - 1].data());
+		concurrency::array_view<double, 2> E(E_data[lc - 1].size(), 1, E_data[lc - 1].data());
 		concurrency::array_view<double, 2> T(target.size(), 1, target.data());
 
 		parallel_for_each(E.extent,
 			[=](concurrency::index<2> idx) restrict(amp) {
-				E[idx] -= T[idx];
+				E[idx] = T[idx] - E[idx];
 			});
 
 		E.synchronize();
@@ -107,7 +108,7 @@ void NeuralNetwork::train(std::vector<double>& input, std::vector<double>& targe
 
 std::vector<double> NeuralNetwork::query(std::vector<double> &input) {
 	O_data[0] = input;
-
+	
 	for (unsigned int i = 0; i < lc - 1; i++) {
 		concurrency::array_view<double, 2> X(O_data[i].size(), 1, O_data[i]);
 		concurrency::array_view<double, 2> Y(O_data[i+1].size(), 1, O_data[i+1]);
@@ -139,5 +140,36 @@ void NeuralNetwork::randomize()
 			if (w[i] < 0.01f) w[i] = 0.01f;
 			else if (w[i] > 0.99f) w[i] = 0.99f;
 		}
+	}
+}
+
+void NeuralNetwork::saveData()
+{
+	std::ofstream file("06-09-2021.ds", std::ios::trunc | std::ios::binary);
+	if (file) {
+		for (unsigned int i = 0; i < lc-1; i++) {
+			for (auto& c : W_data[i]) {
+				file << c;
+			}
+		}
+
+		file.close();
+	}
+}
+
+void NeuralNetwork::loadData(const char* filename)
+{
+	std::ifstream file(filename, std::ios::binary);
+	if (file) {
+		std::cout << "\n";
+		for (unsigned int i = 0; i < lc - 1; i++) {
+			for (auto& c : W_data[i]) {
+				file >> c;
+			};
+			if (!(i % (lc - 1))) std::cout << "*";
+		};
+
+		std::cout << "\n";
+		file.close();
 	}
 }
