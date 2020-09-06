@@ -1,16 +1,13 @@
 #pragma once
 
-#define _USE_MATH_DEFINES
-#include <cmath>
-
 #include <amp.h>
+#include <amp_math.h>
 
 #include <fstream>
 #include <stdexcept>
-#include <array>
+#include <vector>
 #include <random>
 #include <iostream>
-#include <iomanip>
 
 /*
 N - кол-во слоев
@@ -23,12 +20,14 @@ N - кол-во слоев
 
 using namespace concurrency;
 
-const unsigned int layers_count = 3;
-const unsigned int amountOfNodesOnLayers[layers_count] = { 5, 4, 10 };
+const unsigned int lc = 3;
+const unsigned int amountOfNodesOnLayers[lc] = { 3,5,3 };
 
-const double learning_rate = 0.3f;
+#define learning_rate 0.3f
 
 
+
+#define sygm(val) (1 / (1 + fast_math::exp(val)))
 
 
 class NeuralNetwork
@@ -40,15 +39,16 @@ public:
 	~NeuralNetwork();								// сохраняем проделанное в файл
 
 	void init();
-	void train();
-	std::vector<double> query(std::vector<double>& I);
+	void train(std::vector<double> & input, std::vector<double> &target);
+	std::vector<double> query(std::vector<double> &input);
 
 	void randomize();
 private:
-	unsigned int nodes_sum = 0, W_data_size = 0;
-	std::array<std::vector<double>,layers_count-1> W;
+	unsigned int nodes_sum = 0;
 
-	double sygm(double val);
+	std::vector<std::vector<double>> O_data;
+	std::vector<std::vector<double>> E_data;
+	std::vector<std::vector<double>> W_data;
+
+	std::vector<concurrency::array_view<double, 2>> W_av;
 };
-
-std::vector<double> operator* (std::vector<double>& Ww, std::vector<double>& input);

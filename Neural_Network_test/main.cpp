@@ -9,8 +9,11 @@ int main() {
 	net.randomize();
 
 	std::vector<double> input = { 0.9f,0.7f,0.5f };
+	std::vector<double> target = { 0.55f,0.61f,0.15f };
 
-	net.query(input);
+	net.train(input, target);
+
+	//net.query(input);
 
 	return true;
 }
