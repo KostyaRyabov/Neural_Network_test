@@ -1,5 +1,9 @@
 #pragma once
 
+
+
+#include <iomanip> 
+
 #include <amp.h>
 #include <amp_math.h>
 
@@ -21,13 +25,9 @@ N - кол-во слоев
 using namespace concurrency;
 
 const unsigned int lc = 3;
-const unsigned int amountOfNodesOnLayers[lc] = { 784,100,10 };
+const unsigned int amountOfNodesOnLayers[lc] = { 784, 100, 10 };
 
-#define learning_rate 0.2f
-
-
-
-#define sygm(val) (1 / (1 + fast_math::exp(val)))
+#define learning_rate 0.3f
 
 
 class NeuralNetwork

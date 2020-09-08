@@ -15,7 +15,6 @@ void NeuralNetwork::init() {
 	
 	nodes_sum = amountOfNodesOnLayers[0];
 	O_data.push_back(std::vector<double>(amountOfNodesOnLayers[0]));
-	E_data.push_back(std::vector<double>(amountOfNodesOnLayers[0]));
 
 	// инициализация их представлений
 
@@ -31,12 +30,21 @@ void NeuralNetwork::init() {
 }
 
 void NeuralNetwork::train(std::vector<double>& input, std::vector<double>& target) {
-	E_data[lc-1] = query(input);
+	E_data[lc-2] = query(input);
 
+	double sE = 0;
+	int ti = -1;
+	for (int i = 0; i < target.size(); i++) {
+		sE += E_data[lc - 2][i];
+
+		if (target[i] > 0.2) ti = i;
+	}
+
+	//std::cout << std::fixed << std::setprecision(1) << "	( " << E_data[lc - 2][ti] / sE*100 << "% )\n";
 	
 	// нахождение выходной ошибки
 	{
-		concurrency::array_view<double, 2> E(E_data[lc - 1].size(), 1, E_data[lc - 1].data());
+		concurrency::array_view<double, 2> E(E_data[lc - 2].size(), 1, E_data[lc - 2].data());
 		concurrency::array_view<double, 2> T(target.size(), 1, target.data());
 
 		parallel_for_each(E.extent,
@@ -47,62 +55,45 @@ void NeuralNetwork::train(std::vector<double>& input, std::vector<double>& targe
 		E.synchronize();
 	}
 
-	// транспонирование матрицы весов и умножение ее на ошибку на каждом слое
-	for (unsigned int i = lc - 1; i >= 1; i--) {
-		concurrency::array_view<double, 2> E_1(E_data[i-1].size(), 1, E_data[i-1]);
+	for (int i = lc - 2; i > 0; i--) {
+		concurrency::array_view<double, 2> E_1(E_data[i - 1].size(), 1, E_data[i - 1]);
 		concurrency::array_view<double, 2> E_2(E_data[i].size(), 1, E_data[i]);
 
-		auto &W = W_av[i-1];
-		unsigned int count = W.extent[0], size = W.extent[1];
-
-		double *sum_w = new double[size];
-		concurrency::array_view<double, 2> sW(size, 1, sum_w);
-
-		// поиск суммы весов
-
-		parallel_for_each(sW.extent,
-			[=](concurrency::index<2> idx) restrict(amp) {
-				unsigned int col = idx[0];
-				sW(idx) = 0;
-				for (int k = 0; k < count; k++)
-					sW(idx) += W(k, col);
-			});
-
-		sW.synchronize();
-
+		auto& W = W_av[i];
+		unsigned int count = W.extent[1], size = W.extent[0];
 
 		// нахождение значений ошибок предыдущего слоя
 
 		parallel_for_each(E_1.extent,
 			[=](concurrency::index<2> idx) restrict(amp) {
-				unsigned int col = idx[0];
+				unsigned int row = idx[0];
 				double sum = 0.0f;
-				for (int k = 0; k < count; k++)
-					sum += W(k, col) / sW[idx] * E_2(k,1);
+				for (int k = 0; k < size; k++)
+					sum += W(k, row)* E_2(k, 0);
 				E_1[idx] = sum;
 			});
 
 		E_1.synchronize();
+	}
 
-		// изменение весов
-
-		concurrency::array_view<double, 2> O_1(O_data[i - 1].size(), 1, O_data[i - 1]);
-		concurrency::array_view<double, 2> O_2(O_data[i].size(), 1, O_data[i]);
-
-		auto www = W_data[i-1];
+	// транспонирование матрицы весов и умножение ее на ошибку на каждом слое
+	for (int i = lc - 2; i >= 0; i--) {
+		auto& W = W_av[i];
+		
+		concurrency::array_view<double, 2> E(E_data[i].size(), 1, E_data[i]);
+		concurrency::array_view<double, 2> O_1(O_data[i].size(), 1, O_data[i]);
+		concurrency::array_view<double, 2> O_2(O_data[i+1].size(), 1, O_data[i+1]);
 
 		parallel_for_each(W.extent,
 			[=](concurrency::index<2> idx) restrict(amp) {
 				unsigned int row = idx[0], col = idx[1];
 
-				double O_k = O_2(row, 1);
+				double O_k = O_2(row, 0);
 
-				W(row, col) += learning_rate * E_2(row, 1) * O_k * (1 - O_k) * O_1(col, 1);
+				W(idx) += learning_rate * E(row, 0) * O_k * (1.0f - O_k) * O_1(col,0);
 			});
 
 		W.synchronize();
-
-		delete[] sum_w;
 	}
 }
 
@@ -123,7 +114,7 @@ std::vector<double> NeuralNetwork::query(std::vector<double> &input) {
 				float sum = 0.0f;
 				for (int k = 0; k < size; k++)
 					sum += W(row, k) * X(k, col);
-				Y[idx] = sygm(sum);
+				Y[idx] = 1.0f / (1.0f + fast_math::exp(-sum));
 			});
 
 		Y.synchronize();
@@ -145,7 +136,7 @@ void NeuralNetwork::randomize()
 
 void NeuralNetwork::saveData()
 {
-	std::ofstream file("06-09-2021.ds", std::ios::trunc | std::ios::binary);
+	std::ofstream file("07-09-2021.ds", std::ios::trunc | std::ios::binary);
 	if (file) {
 		for (unsigned int i = 0; i < lc-1; i++) {
 			for (auto& c : W_data[i]) {
